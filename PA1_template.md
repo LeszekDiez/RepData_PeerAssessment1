@@ -84,6 +84,7 @@ medianStepsByDate
 ```
 ## [1] 10765
 ```
+The Mean of Steps by day is: 1.07662 &times; 10<sup>4</sup> and the median is 1.0765 &times; 10<sup>4</sup>
 
 ### What is the average daily activity pattern?
 First, the mean of steps taken by days is computed

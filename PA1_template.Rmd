@@ -50,6 +50,7 @@ meanStepsByDate
 medianStepsByDate <- median(StepsByDate$steps)
 medianStepsByDate
 ```
+The Mean of Steps by day is: `r round(meanStepsByDate, 1)` and the median is `r round(medianStepsByDate, 1)`
 
 ### What is the average daily activity pattern?
 First, the mean of steps taken by days is computed
