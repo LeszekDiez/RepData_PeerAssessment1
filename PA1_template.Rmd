@@ -1,25 +1,147 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Peer Assignment 1"
+author: "Leszek Diez"
+date: "October 17, 2015"
+output: html_document
+keep_md: true
 ---
 
+### Getting, loading and preprocessing the data.
 
-## Loading and preprocessing the data
+The data is downloaded from the https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip and unzipped in the data folder.  Next, null values are cleaned from the dataset.
 
+```{r}
 
+filename = "./data/activity.csv"
 
-## What is mean total number of steps taken per day?
+## Getting the zip file, and unzipping it.
+if (!file.exists(filename)) {
+      
+      fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+      zipfile <- "./data/repdata-data-activity.zip"
+      download.file(url=fileUrl, destfile=zipfile)
+      unzip(zipfile, exdir = "./data")
+}
 
+allData <- read.csv(filename, colClasses = c("numeric", "Date", "numeric"), na.strings = NA)
+activityData <- allData[complete.cases(allData), ] 
 
+head(activityData)
 
-## What is the average daily activity pattern?
+```
 
+### What is mean total number of steps taken per day?
 
+First, we need to aggregate the data by date.
+```{r}
 
-## Imputing missing values
+StepsByDate <- aggregate(steps ~ date, data = activityData, sum, na.rm = TRUE)
+head(StepsByDate)
+``` 
+The histogram for the Total Steps by Day:
+```{r}
+hist(StepsByDate$steps, main = "Histogram of Steps by day", xlab = "Number of steps by day", col = "red")
+``` 
 
+The median and mean of Stebs by day:
+```{r}
+meanStepsByDate <- mean(StepsByDate$steps)
+meanStepsByDate
+medianStepsByDate <- median(StepsByDate$steps)
+medianStepsByDate
+```
 
+### What is the average daily activity pattern?
+First, the mean of steps taken by days is computed
+```{r}
+intervalMeans <- aggregate(steps ~ interval, data = allData, mean, na.rm = TRUE)
+head(intervalMeans)
+``` 
+The Time-Series for the mean of Steps taken by day:
+```{r}
+plot(intervalMeans$interval, 
+     intervalMeans$steps, 
+     type="l", 
+     col="blue", 
+     lwd=2, 
+     xlab="Interval [minutes]", 
+     ylab="Average number of steps", 
+     main="Time-series of the average number of steps per intervals\n(NA removed)")
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+maxInterval <- intervalMeans[which.max(intervalMeans$steps),]
+
+```
+The interval with the max mean of steps taken by day is the # `r maxInterval[ ,1]`
+
+### Imputing missing values
+```{r}
+numMissingValues <- length(which(is.na(allData$steps)))
+```
+There are `r numMissingValues` missing values on the dataset.
+
+We are going to fill in this NA values with the average steps for their interval using the dataset we used in the Time-series.
+```{r}
+#First, I'll rename column "steps" in dataframe intervalMeans to what it actually represents
+names(intervalMeans)[names(intervalMeans)=="steps"] <- "avgIntervalSteps"
+
+#Now merge the average back into the dataframe by intTime
+allDataWithAvg <- merge(x=allData,y=intervalMeans, by="interval", all.x=TRUE)
+
+allDataWithAvg$imputedSteps <- ifelse(is.na(allDataWithAvg$steps), 
+                                          allDataWithAvg$avgIntervalSteps, #replace nulls
+                                          allDataWithAvg$steps) #if they have value, stay with it
+                                 
+head(allDataWithAvg)
+```
+
+The histogram for the Total Steps by Day with the Imputed Values:
+```{r}
+StepsByDate <- aggregate(imputedSteps ~ date, data = allDataWithAvg, sum, na.rm = TRUE)
+hist(StepsByDate$imputedSteps, main = "Histogram of Steps by day", xlab = "Number of steps by day", col = "red")
+``` 
+
+Then we compare the mean and median for the Dataframe with NA, and the new dataframe with imputed values.
+The median and mean of Stebs by day:
+```{r}
+meanStepsByDate_Imputed <- mean(StepsByDate$imputedSteps)
+#meanStepsByDate_Imputed
+#meanStepsByDate
+medianStepsByDate_Imputed <- median(StepsByDate$imputedSteps)
+#medianStepsByDate_Imputed
+#medianStepsByDate
+```
+
+There is not significantly change in the mean and median after imputing the values for the NA.  
+Mean before fill-in: `r round(meanStepsByDate, 1)*1` vs `r round(meanStepsByDate_Imputed, 1)` after fill-in
+Median before fill-in: `r round(medianStepsByDate)` vs `r round(medianStepsByDate_Imputed)` after fill-in
+
+### Are there differences in activity patterns between weekdays and weekends?
+Firt at all, we need to add a flag for those days that correspond to weekend and weekdays.
+```{r}
+allDataWithAvg$weekday <- weekdays(allDataWithAvg$date)
+allDataWithAvg$weekendFlag <- ifelse(allDataWithAvg$weekday=="Saturday" | allDataWithAvg$weekday == "Sunday", "Weekend", "Weekday")
+head(allDataWithAvg)
+```
+
+Then we make a panel plot containing a time series plot of the 5-minute interval and the average number of steps taken, averaged across all weekday days or weekend days.
+```{r}
+par(mfrow = c(2, 1))
+par(mar = c(4, 4, 2, 1)) 
+for (dayType in c("Weekend", "Weekday")) {
+
+      StepsByDate <- aggregate(imputedSteps ~ interval, data = allDataWithAvg,  subset = allDataWithAvg$weekendFlag == dayType, sum, na.rm = TRUE)
+      
+      plot(StepsByDate$interval, 
+           StepsByDate$imputedSteps, 
+           type="l", 
+           lwd=2,
+           col="blue", 
+           xlab="Interval [minutes]", 
+           ylab="Avg number of steps", 
+           main = paste("Avg of Steps per Intervals on ", dayType))
+           
+}
+```
